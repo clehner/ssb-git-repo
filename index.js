@@ -59,6 +59,14 @@ function Repo(sbot, feed, name) {
   this._objects = {/* sha1: {type, length, key} */}
 }
 
+Repo.prototype.closed = false
+
+Repo.prototype.close = function (cb) {
+  if (this.closed) return
+  this.closed = true
+  this._stream(true, cb)
+}
+
 Repo.prototype._processMsg = function (msg) {
   var c = msg.value.content
   if (c.type == 'git-update' && c.repo == this.name) {

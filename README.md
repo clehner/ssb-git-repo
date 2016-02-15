@@ -53,7 +53,18 @@ has the private key for the feed ID of the repo.
 - `sbot`: a [scuttlebot][] or [ssb-client][] object
 - `feed`: ID of the SSB feed that owns the repo
 - `name`: string name identifying the repo in the feed
-- `repo`: an [abstract-pull-git-repo][]-compliant git repo object
+- `repo`: a `ssbGit.Repo` object representing the git repo
+
+#### `ssbGit.Repo`
+
+An [abstract-pull-git-repo][]-compliant git repo object. Additional methods:
+
+#### `Repo.close(cb(err))`
+
+- `cb`: function called when the repo's stream is closed
+- `err`: error closing the repo, if any
+
+Close the repo's update stream
 
 [abstract-pull-git-repo]: https://github.com/clehner/abstract-pull-git-repo
 [ssb-client]: https://github.com/ssbc/ssb-client
@@ -65,7 +76,6 @@ has the private key for the feed ID of the repo.
 
 - reuse index between a user's repos
 - queue operations made before log is fully read
-- handle closing live log index
 - handle push with more object IDs than fit in a message
 
 ## License
