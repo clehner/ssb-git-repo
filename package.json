@@ -1,0 +1,34 @@
+{
+  "name": "ssb-git-repo",
+  "version": "0.1.0",
+  "description": "git repos in secure-scuttlebutt",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/clehner/ssb-git-repo"
+  },
+  "keywords": [
+    "git",
+    "secure-scuttlebutt",
+    "pull-git-repo"
+  ],
+  "author": "Charles Lehner (http://celehner.com/)",
+  "license": "Fair",
+  "bugs": {
+    "url": "https://github.com/clehner/ssb-git-repo/issues"
+  },
+  "dependencies": {
+    "multicb": "^1.2.1",
+    "pull-stream": "^3.1.0",
+    "ssb-ref": "^2.3.0"
+  },
+  "devDependencies": {
+    "abstract-pull-git-repo": "^0.1.0",
+    "scuttlebot": "^7.5.1",
+    "ssb-keys": "^4.0.10",
+    "tape": "^4.4.0"
+  }
+}
