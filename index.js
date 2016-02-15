@@ -38,7 +38,8 @@ function GitSSBRepo(sbot, feed, name) {
   this.sbot = sbot
   this.feed = feed
   this.name = name
-  this._refs = {}
+  this._refs = {/* ref: sha1 */}
+  this._objects = {/* sha1: {type, length, key} */}
 
   pull(
     sbot.createHistoryStream({id: feed, live: true}),
@@ -46,19 +47,26 @@ function GitSSBRepo(sbot, feed, name) {
   )
 }
 
-// FIXME
-var cache = {}
-
 GitSSBRepo.prototype._processMsg = function (msg) {
   var c = msg.value.content
   if (c.type == 'git-update' && c.repo == this.name) {
     var update = c.refs
-    var refs = this._refs
-    for (var name in update) {
-      if (update[name])
-        refs[name] = update[name]
-      else
-        delete refs[name]
+    if (update) {
+      var refs = this._refs
+      for (var name in update) {
+        if (update[name])
+          refs[name] = update[name]
+        else
+          delete refs[name]
+      }
+    }
+
+    var objects = c.objects
+    if (objects) {
+      var allObjects = this._objects
+      for (var sha1 in objects) {
+        allObjects[sha1] = objects[sha1]
+      }
     }
   }
 }
@@ -73,8 +81,7 @@ GitSSBRepo.prototype._getBlob = function (hash, cb) {
 }
 
 GitSSBRepo.prototype._hashLookup = function (sha1, cb) {
-  cb(null, cache[sha1])
-  // cb(new Error('not implemented'))
+  cb(null, this._objects[sha1])
 }
 
 // get refs source({name, hash})
@@ -114,7 +121,6 @@ GitSSBRepo.prototype.getObject = function (hash, cb) {
 GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
   var done = multicb({pluck: 1})
   var sbot = this.sbot
-  var objectsInfo = {}
   var ended
   var msg = {
     type: 'git-update',
@@ -142,6 +148,7 @@ GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
 
   if (readObjects) {
     var doneReadingObjects = done()
+    var objects = msg.objects = {}
     readObjects(null, function next(end, object) {
       if (end) return doneReadingObjects(end === true ? null : end)
       var sha1
@@ -154,7 +161,7 @@ GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
         }),
         sbot.blobs.add(function (err, hash) {
           if (err) return doneReadingObjects(err)
-          cache[sha1] = objectsInfo[sha1] = {
+          objects[sha1] = {
             type: object.type,
             length: object.length,
             key: hash
@@ -170,7 +177,6 @@ GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
   done(function (err) {
     ended = true
     if (err) return cb(err)
-    // console.error('objects info', objectsInfo)
     sbot.publish(msg, function (err, msg) {
       if (err) return cb(err)
       // pre-emptively apply the local update.
