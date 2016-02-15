@@ -3,8 +3,6 @@ var pull = require('pull-stream')
 var multicb = require('multicb')
 var crypto = require('crypto')
 
-module.exports = GitSSBRepo
-
 function createHash(type, onEnd) {
   var hash = (typeof type == 'string') ? crypto.createHash(type) : type
   function hasher(read) {
@@ -28,10 +26,27 @@ function createGitHash(object, onEnd) {
   return hasher
 }
 
-function GitSSBRepo(sbot, feed, name) {
-  if (!(this instanceof GitSSBRepo))
-    return new GitSSBRepo(sbot, feed, name)
+exports.getRepo = function (sbot, feed, name, cb) {
+  var repo = new Repo(sbot, feed, name)
+  var processMsg = repo._processMsg.bind(repo)
 
+  pull(
+    sbot.createHistoryStream({id: feed}),
+    pull.drain(processMsg, function (err) {
+      if (err) return cb(err)
+      cb(null, repo)
+    })
+  )
+
+  /*
+  pull(
+    sbot.createHistoryStream({id: feed, seq: seq, live: true}),
+    pull.drain(processMsg)
+  )
+  */
+}
+
+function Repo(sbot, feed, name) {
   if (!ref.isFeed(feed))
     throw new Error('Invalid feed ID: ' + feed)
 
@@ -40,14 +55,9 @@ function GitSSBRepo(sbot, feed, name) {
   this.name = name
   this._refs = {/* ref: sha1 */}
   this._objects = {/* sha1: {type, length, key} */}
-
-  pull(
-    sbot.createHistoryStream({id: feed, live: true}),
-    pull.drain(this._processMsg.bind(this))
-  )
 }
 
-GitSSBRepo.prototype._processMsg = function (msg) {
+Repo.prototype._processMsg = function (msg) {
   var c = msg.value.content
   if (c.type == 'git-update' && c.repo == this.name) {
     var update = c.refs
@@ -71,7 +81,7 @@ GitSSBRepo.prototype._processMsg = function (msg) {
   }
 }
 
-GitSSBRepo.prototype._getBlob = function (hash, cb) {
+Repo.prototype._getBlob = function (hash, cb) {
   var blobs = this.sbot.blobs
   blobs.want(hash, function (err, got) {
     if (err) cb(err)
@@ -80,12 +90,12 @@ GitSSBRepo.prototype._getBlob = function (hash, cb) {
   })
 }
 
-GitSSBRepo.prototype._hashLookup = function (sha1, cb) {
+Repo.prototype._hashLookup = function (sha1, cb) {
   cb(null, this._objects[sha1])
 }
 
 // get refs source({name, hash})
-GitSSBRepo.prototype.refs = function (prefix) {
+Repo.prototype.refs = function (prefix) {
   if (prefix) throw new Error('prefix not supported')
   var refs = this._refs
   var ended
@@ -100,14 +110,14 @@ GitSSBRepo.prototype.refs = function (prefix) {
   )
 }
 
-GitSSBRepo.prototype.hasObject = function (hash, cb) {
+Repo.prototype.hasObject = function (hash, cb) {
   var blobs = this.sbot.blobs
   this._hashLookup(hash, function (err, obj) {
     cb(err, !!obj)
   })
 }
 
-GitSSBRepo.prototype.getObject = function (hash, cb) {
+Repo.prototype.getObject = function (hash, cb) {
   var blobs = this.sbot.blobs
   this._hashLookup(hash, function (err, obj) {
     cb(err, obj && {
@@ -118,7 +128,7 @@ GitSSBRepo.prototype.getObject = function (hash, cb) {
   })
 }
 
-GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
+Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
   var done = multicb({pluck: 1})
   var sbot = this.sbot
   var ended

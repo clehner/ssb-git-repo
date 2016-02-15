@@ -1,10 +1,51 @@
-# ssb-git-repo
+# ssb-git
 
 Host git repos in [secure-scuttlebutt][]
 
+## Example
+
+```js
+var ssbGit = require('ssb-git')
+var feedId = '@RLJOvvDzsBJqr/kYCpK2u4kBWjqQS9LDtg2lZpGYgo0=.ed25519'
+var repoName = 'example'
+
+// get a single repo:
+ssbGit.getRepo(sbot, feedId, repoName, function (err, repo) {
+  if (err) throw err
+  // do something with the repo
+})
+```
+
 ## API
 
-#### `var repo = new GitSSBRepo(sbot, feed, name)`
+#### `ssbGit.getRepo(sbot, feedId, repoName, cb(err, repo))`
+
+Get a repo from the given feed by the given name.
+
+- `sbot`: a [scuttlebot][] or [ssb-client][] object
+- `feedId`: ID of the SSB feed containing the repo
+- `repoName`: the name of the repo in the feed
+- `cb`: function called when the repo is retrieved
+- `err`: error retrieving the feed, if any
+- `repo`: `ssbGit.Repo` object for the repo being retrieved
+
+#### `ssbGit.getFeedRepos(sbot, feedId, cb(err, feedRepos))`
+
+Get all repos in a given feed
+
+- `feedRepos`: `ssbGit.FeedRepos` object for the repos being retrieved
+
+#### `ssbGit.getAllRepos(sbot, cb(err, allRepos)`
+
+Get all repos in the network
+
+- `allRepos`: `ssbGit.Repos` object for the repos being retrieved
+
+#### `allRepos.getFeedRepos(feedId): feedRepos`
+
+Get repos for a single feed, from the full repos
+
+#### `feedRepos.getRepo(repoName): repo`
 
 Get a repo. No side effects. You can only push to the repo if your SSB client
 has the private key for the feed ID of the repo.
