@@ -28,22 +28,24 @@ function createGitHash(object, onEnd) {
 
 exports.getRepo = function (sbot, feed, name, cb) {
   var repo = new Repo(sbot, feed, name)
-  var processMsg = repo._processMsg.bind(repo)
+  var seq = 0
 
   pull(
     sbot.createHistoryStream({id: feed}),
-    pull.drain(processMsg, function (err) {
+    pull.drain(function (msg) {
+      console.error('msg', msg)
+      seq = msg.seq
+      repo._processMsg(msg)
+    }, function (err) {
       if (err) return cb(err)
+      pull(
+        repo._stream =
+          sbot.createHistoryStream({id: feed, seq: seq, live: true}),
+        pull.drain(repo._processMsg.bind(repo))
+      )
       cb(null, repo)
     })
   )
-
-  /*
-  pull(
-    sbot.createHistoryStream({id: feed, seq: seq, live: true}),
-    pull.drain(processMsg)
-  )
-  */
 }
 
 function Repo(sbot, feed, name) {
