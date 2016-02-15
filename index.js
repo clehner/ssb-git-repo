@@ -91,12 +91,12 @@ Repo.prototype._processMsg = function (msg) {
   }
 }
 
-Repo.prototype._getBlob = function (hash, cb) {
+Repo.prototype._getBlob = function (key, cb) {
   var blobs = this.sbot.blobs
-  blobs.want(hash, function (err, got) {
+  blobs.want(key, function (err, got) {
     if (err) cb(err)
-    else if (!got) cb(new Error('Unable to get blob ' + hash))
-    else cb(null, blobs.get(hash))
+    else if (!got) cb(new Error('Unable to get blob ' + key))
+    else cb(null, blobs.get(key))
   })
 }
 
@@ -128,14 +128,18 @@ Repo.prototype.hasObject = function (hash, cb) {
 }
 
 Repo.prototype.getObject = function (hash, cb) {
-  var blobs = this.sbot.blobs
   this._hashLookup(hash, function (err, obj) {
-    cb(err, obj && {
-      type: obj.type,
-      length: obj.length,
-      read: blobs.get(obj.key)
+    if (err) return cb(err)
+    if (!obj) return cb()
+    this._getBlob(obj.key, function (err, read) {
+      if (err) return cb(err)
+      cb(null, {
+        type: obj.type,
+        length: obj.length,
+        read: read
+      })
     })
-  })
+  }.bind(this))
 }
 
 Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
@@ -177,7 +181,6 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
         createGitHash(object, function (err, hash) {
           if (err) return doneReadingObjects(err)
           sha1 = hash.toString('hex')
-          console.error('git hash', sha1)
         }),
         sbot.blobs.add(function (err, hash) {
           if (err) return doneReadingObjects(err)
