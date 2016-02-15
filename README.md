@@ -23,7 +23,9 @@ has the private key for the feed ID of the repo.
 ## TODO
 
 - make lookup tables for SHA1 → git objects
-- use SSB API the right way
+- reuse index between a user's repos
+- queue operations made before log is fully read
+- handle closing live log index
 
 ## License
 

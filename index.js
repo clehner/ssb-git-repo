@@ -38,10 +38,30 @@ function GitSSBRepo(sbot, feed, name) {
   this.sbot = sbot
   this.feed = feed
   this.name = name
+  this._refs = {}
+
+  pull(
+    sbot.createHistoryStream({id: feed, live: true}),
+    pull.drain(this._processMsg.bind(this))
+  )
 }
 
 // FIXME
 var cache = {}
+
+GitSSBRepo.prototype._processMsg = function (msg) {
+  var c = msg.value.content
+  if (c.type == 'git-update' && c.repo == this.name) {
+    var update = c.refs
+    var refs = this._refs
+    for (var name in update) {
+      if (update[name])
+        refs[name] = update[name]
+      else
+        delete refs[name]
+    }
+  }
+}
 
 GitSSBRepo.prototype._getBlob = function (hash, cb) {
   var blobs = this.sbot.blobs
@@ -60,47 +80,15 @@ GitSSBRepo.prototype._hashLookup = function (sha1, cb) {
 // get refs source({name, hash})
 GitSSBRepo.prototype.refs = function (prefix) {
   if (prefix) throw new Error('prefix not supported')
-  var ended, refs
-  return function read(end, cb) {
-    if (ended) return
-    if (!refs)
-      return this.getRefs(function (err, _refs) {
-        if (ended = err) return cb(err)
-        refs = _refs
-        read(end, cb)
-      })
-    for (var name in refs) {
-      var hash = refs[name]
-      delete refs[name]
-      cb(null, {name: name, hash: hash})
-      return
-    }
-    cb(ended = true)
-  }.bind(this)
-}
-
-// get refs object {name: hash}
-GitSSBRepo.prototype.getRefs = function (cb) {
-  var refs = {}
-  pull(
-    this.sbot.links({
-      type: 'git-update',
-      dest: this.feed,
-      source: this.feed,
-      rel: this.name,
-      values: true
-    }),
-    pull.drain(function (msg) {
-      // console.error('got link', msg)
-      var update = msg.value.content.refs
-      for (var name in update) {
-        if (update[name])
-          refs[name] = update[name]
-        else
-          delete refs[name]
+  var refs = this._refs
+  var ended
+  return pull(
+    pull.values(Object.keys(refs)),
+    pull.map(function (name) {
+      return {
+        name: name,
+        hash: refs[name]
       }
-    }, function (err) {
-      cb(err, refs)
     })
   )
 }
@@ -132,27 +120,23 @@ GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
     type: 'git-update',
     repo: this.name
   }
-  msg[this.name] = this.feed
 
   if (readRefUpdates) {
     var doneReadingRefs = done()
-    this.getRefs(function (err, refs) {
-      if (err) return doneReadingRefs(err)
-      // console.error('initial refs', refs)
-      msg.refs = refs
-      readRefUpdates(null, function next(end, update) {
-        if (end) return doneReadingRefs(end === true ? null : end)
-        if (update.old != refs[update.name])
-          return doneReadingRefs(new Error(
-            'Ref update old value is incorrect. ' +
-            'ref: ' + update.name + ', ' +
-            'old in update: ' + update.old + ', ' +
-            'old in repo: ' + refs[update.name]
-          ))
-          refs[update.name] = update.new
-        if (!ended)
-          readRefUpdates(null, next)
-      })
+    var oldRefs = this._refs
+    var refs = msg.refs = {}
+    readRefUpdates(null, function next(end, update) {
+      if (end) return doneReadingRefs(end === true ? null : end)
+      if (update.old != oldRefs[update.name])
+        return doneReadingRefs(new Error(
+          'Ref update old value is incorrect. ' +
+          'ref: ' + update.name + ', ' +
+          'old in update: ' + update.old + ', ' +
+          'old in repo: ' + oldRefs[update.name]
+        ))
+        refs[update.name] = update.new
+      if (!ended)
+        readRefUpdates(null, next)
     })
   }
 
@@ -181,14 +165,18 @@ GitSSBRepo.prototype.update = function (readRefUpdates, readObjects, cb) {
       )
     })
   }
-  // console.error('adding object')
 
-  // var self = this
+  var self = this
   done(function (err) {
     ended = true
     if (err) return cb(err)
     // console.error('objects info', objectsInfo)
-    // console.error('msg', msg)
-    sbot.publish(msg, cb)
+    sbot.publish(msg, function (err, msg) {
+      if (err) return cb(err)
+      // pre-emptively apply the local update.
+      // the update is idempotent so this is ok.
+      self._processMsg(msg)
+      cb()
+    })
   })
 }
