@@ -26,8 +26,52 @@ function createGitHash(object, onEnd) {
   return hasher
 }
 
-exports.getRepo = function (sbot, feed, name, cb) {
-  var repo = new Repo(sbot, feed, name)
+exports.createRepo = function (sbot, options, cb) {
+  if (typeof options == 'function') cb = options, options = null
+  var msg = {
+    type: 'git-repo'
+  }
+  if (options) {
+    if (options.forks && !ref.isMsg(options.forks))
+      throw new Error('Invalid repo ID: ' + options.forks)
+    for (var key in options)
+      msg[key] = options[key]
+  }
+  sbot.publish(msg, function (err, msg) {
+    cb(err, msg && new Repo(sbot, msg.key))
+  })
+}
+
+exports.getRepo = function (sbot, id, cb) {
+  sbot.get(id, function (err, msg) {
+    if (err) return cb(err)
+    cb(null, new Repo(sbot, id, author))
+  })
+}
+
+function Repo(sbot, msgId, feedId) {
+  if (!ref.isMsg(msgId))
+    throw new Error('Invalid repo ID: ' + id)
+
+  this.sbot = sbot
+  this.id = msgId
+  this.feed = feedId
+  this._refs = {/* ref: sha1 */}
+  this._objects = {/* sha1: {type, length, key} */}
+}
+
+exports.Repo = Repo
+
+Repo.prototype.closed = false
+
+Repo.prototype.close = function (cb) {
+  if (this.closed) return
+  this.closed = true
+  this._stream(true, cb)
+}
+
+Repo.prototype._sync = function () {
+  /*
   var seq = 0
 
   pull(
@@ -46,47 +90,28 @@ exports.getRepo = function (sbot, feed, name, cb) {
       cb(null, repo)
     })
   )
-}
-
-function Repo(sbot, feed, name) {
-  if (!ref.isFeed(feed))
-    throw new Error('Invalid feed ID: ' + feed)
-
-  this.sbot = sbot
-  this.feed = feed
-  this.name = name
-  this._refs = {/* ref: sha1 */}
-  this._objects = {/* sha1: {type, length, key} */}
-}
-
-Repo.prototype.closed = false
-
-Repo.prototype.close = function (cb) {
-  if (this.closed) return
-  this.closed = true
-  this._stream(true, cb)
+  */
 }
 
 Repo.prototype._processMsg = function (msg) {
   var c = msg.value.content
-  if (c.type == 'git-update' && c.repo == this.name) {
-    var update = c.refs
-    if (update) {
-      var refs = this._refs
-      for (var name in update) {
-        if (update[name])
-          refs[name] = update[name]
-        else
-          delete refs[name]
-      }
+  if (c.type != 'git-update' || c.repo != this.id) return
+  var update = c.refs
+  if (update) {
+    var refs = this._refs
+    for (var name in update) {
+      if (update[name])
+        refs[name] = update[name]
+      else
+        delete refs[name]
     }
+  }
 
-    var objects = c.objects
-    if (objects) {
-      var allObjects = this._objects
-      for (var sha1 in objects) {
-        allObjects[sha1] = objects[sha1]
-      }
+  var objects = c.objects
+  if (objects) {
+    var allObjects = this._objects
+    for (var sha1 in objects) {
+      allObjects[sha1] = objects[sha1]
     }
   }
 }
@@ -107,16 +132,31 @@ Repo.prototype._hashLookup = function (sha1, cb) {
 // get refs source({name, hash})
 Repo.prototype.refs = function (prefix) {
   if (prefix) throw new Error('prefix not supported')
-  var refs = this._refs
-  var ended
+  // var refs = this._refs
+  var refs = {}
   return pull(
-    pull.values(Object.keys(refs)),
-    pull.map(function (name) {
-      return {
-        name: name,
-        hash: refs[name]
-      }
-    })
+    this.sbot.links({
+      type: 'git-update',
+      dest: this.id,
+      source: this.feed,
+      rel: 'repo',
+      values: true,
+      reverse: true
+    }),
+    pull.map(function (msg) {
+      var c = msg.value.content
+      var refsArr = []
+      if (c.refs)
+        for (var ref in c.refs)
+          if (!(ref in refs)) {
+            var hash = c.refs[ref]
+            refs[ref] = hash
+            if (hash)
+              refsArr.push({name: ref, hash: hash})
+          }
+      return refsArr
+    }),
+    pull.flatten()
   )
 }
 
@@ -148,7 +188,7 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
   var ended
   var msg = {
     type: 'git-update',
-    repo: this.name
+    repo: this.id
   }
 
   if (readRefUpdates) {

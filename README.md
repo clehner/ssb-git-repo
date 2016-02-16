@@ -6,11 +6,10 @@ Host git repos in [secure-scuttlebutt][]
 
 ```js
 var ssbGit = require('ssb-git')
-var feedId = '@RLJOvvDzsBJqr/kYCpK2u4kBWjqQS9LDtg2lZpGYgo0=.ed25519'
-var repoName = 'example'
+var repoId = '%CBeVWA9eYt6OhJDXFtqas6kWb5LwaJxYtfwDazKvh4U=.sha256'
 
 // get a single repo:
-ssbGit.getRepo(sbot, feedId, repoName, function (err, repo) {
+ssbGit.getRepo(sbot, repoId, function (err, repo) {
   if (err) throw err
   // do something with the repo
 })
@@ -18,48 +17,33 @@ ssbGit.getRepo(sbot, feedId, repoName, function (err, repo) {
 
 ## API
 
-#### `ssbGit.getRepo(sbot, feedId, repoName, cb(err, repo))`
+#### `ssbGit.createRepo(sbot[, options], cb(err, repo))`
 
-Get a repo from the given feed by the given name.
+Create a repo. Publishes a message announcing the new repo.
 
 - `sbot`: a [scuttlebot][] or [ssb-client][] object
-- `feedId`: ID of the SSB feed containing the repo
-- `repoName`: the name of the repo in the feed
+- `options`: optional additional keys to add the repo creation message
+  - `options.forks`: message ID of a repo of which this repo is considered a
+    fork
+- `cb`: function called when the repo is created
+- `err`: error creating the repo, if any
+- `repo`: `ssbGit.Repo` object for the new repo
+
+#### `ssbGit.getRepo(sbot, repoId, cb(err, repo))`
+
+Get a repo.
+
+- `sbot`: a [scuttlebot][] or [ssb-client][] object
+- `id`: ID of the SSB message that started the repo
 - `cb`: function called when the repo is retrieved
-- `err`: error retrieving the feed, if any
-- `repo`: `ssbGit.Repo` object for the repo being retrieved
-
-#### `ssbGit.getFeedRepos(sbot, feedId, cb(err, feedRepos))`
-
-Get all repos in a given feed
-
-- `feedRepos`: `ssbGit.FeedRepos` object for the repos being retrieved
-
-#### `ssbGit.getAllRepos(sbot, cb(err, allRepos)`
-
-Get all repos in the network
-
-- `allRepos`: `ssbGit.Repos` object for the repos being retrieved
-
-#### `allRepos.getFeedRepos(feedId): feedRepos`
-
-Get repos for a single feed, from the full repos
-
-#### `feedRepos.getRepo(repoName): repo`
-
-Get a repo. No side effects. You can only push to the repo if your SSB client
-has the private key for the feed ID of the repo.
-
-- `sbot`: a [scuttlebot][] or [ssb-client][] object
-- `feed`: ID of the SSB feed that owns the repo
-- `name`: string name identifying the repo in the feed
-- `repo`: a `ssbGit.Repo` object representing the git repo
+- `err`: error retrieving the repo, if any
+- `repo`: `ssbGit.Repo` object for the retrieved repo
 
 #### `ssbGit.Repo`
 
 An [abstract-pull-git-repo][]-compliant git repo object. Additional methods:
 
-#### `Repo.close(cb(err))`
+#### `repo.close(cb(err))`
 
 - `cb`: function called when the repo's stream is closed
 - `err`: error closing the repo, if any
