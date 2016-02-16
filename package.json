@@ -26,7 +26,7 @@
     "ssb-ref": "^2.3.0"
   },
   "devDependencies": {
-    "abstract-pull-git-repo": "^0.1.0",
+    "abstract-pull-git-repo": "^0.2.0",
     "scuttlebot": "^7.5.1",
     "ssb-keys": "^4.0.10",
     "tape": "^4.4.0"

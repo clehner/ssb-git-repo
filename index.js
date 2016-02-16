@@ -124,8 +124,8 @@ Repo.prototype._hashLookup = function (sha1, cb) {
 // get refs source({name, hash})
 Repo.prototype.refs = function (prefix) {
   if (prefix) throw new Error('prefix not supported')
-  // var refs = this._refs
   var refs = {}
+  var objects = this._objects
   return pull(
     this.sbot.links({
       type: 'git-update',
@@ -146,6 +146,10 @@ Repo.prototype.refs = function (prefix) {
             if (hash)
               refsArr.push({name: ref, hash: hash})
           }
+      if (c.objects)
+        for (var object in c.objects)
+          if (!(hash in objects))
+            objects[hash] = c.objects[hash]
       return refsArr
     }),
     pull.flatten()
