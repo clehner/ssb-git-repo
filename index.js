@@ -38,26 +38,40 @@ exports.createRepo = function (sbot, options, cb) {
       msg[key] = options[key]
   }
   sbot.publish(msg, function (err, msg) {
-    cb(err, msg && new Repo(sbot, msg.key))
+    cb(err, msg && new Repo(sbot, msg.key, msg.value))
   })
 }
 
 exports.getRepo = function (sbot, id, cb) {
   sbot.get(id, function (err, msg) {
     if (err) return cb(err)
-    cb(null, new Repo(sbot, id, author))
+    cb(null, new Repo(sbot, id, msg))
   })
 }
 
-function Repo(sbot, msgId, feedId) {
-  if (!ref.isMsg(msgId))
-    throw new Error('Invalid repo ID: ' + id)
-
+function Repo(sbot, id, msg) {
   this.sbot = sbot
-  this.id = msgId
-  this.feed = feedId
+  this.id = id
+  this.feed = msg.author
   this._refs = {/* ref: sha1 */}
   this._objects = {/* sha1: {type, length, key} */}
+
+  pull(
+    this._stream = sbot.createHistoryStream({
+      id: msg.author,
+      live: true,
+      sequence: msg.sequence
+    }),
+    pull.drain(this._processMsg.bind(this), function (err) {
+      if (err) return cb(err)
+      pull(
+        repo._stream =
+          sbot.createHistoryStream({id: feed, seq: seq, live: true}),
+        pull.drain(repo._processMsg.bind(repo))
+      )
+      cb(null, repo)
+    })
+  )
 }
 
 exports.Repo = Repo
@@ -70,31 +84,9 @@ Repo.prototype.close = function (cb) {
   this._stream(true, cb)
 }
 
-Repo.prototype._sync = function () {
-  /*
-  var seq = 0
-
-  pull(
-    sbot.createHistoryStream({id: feed}),
-    pull.drain(function (msg) {
-      console.error('msg', msg)
-      seq = msg.seq
-      repo._processMsg(msg)
-    }, function (err) {
-      if (err) return cb(err)
-      pull(
-        repo._stream =
-          sbot.createHistoryStream({id: feed, seq: seq, live: true}),
-        pull.drain(repo._processMsg.bind(repo))
-      )
-      cb(null, repo)
-    })
-  )
-  */
-}
-
 Repo.prototype._processMsg = function (msg) {
   var c = msg.value.content
+  seq = msg.seq
   if (c.type != 'git-update' || c.repo != this.id) return
   var update = c.refs
   if (update) {
