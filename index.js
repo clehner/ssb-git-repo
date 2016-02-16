@@ -2,6 +2,8 @@ var ref = require('ssb-ref')
 var pull = require('pull-stream')
 var multicb = require('multicb')
 var crypto = require('crypto')
+var cat = require('pull-cat')
+var pushable = require('pull-pushable')
 
 function createHash(type, onEnd) {
   var hash = (typeof type == 'string') ? crypto.createHash(type) : type
@@ -38,74 +40,79 @@ exports.createRepo = function (sbot, options, cb) {
       msg[key] = options[key]
   }
   sbot.publish(msg, function (err, msg) {
-    cb(err, msg && new Repo(sbot, msg.key, msg.value))
+    var repo = new Repo(sbot, msg.key, msg.value)
+    repo.synced = true
+    cb(err, msg && repo)
   })
 }
 
 exports.getRepo = function (sbot, id, cb) {
   sbot.get(id, function (err, msg) {
     if (err) return cb(err)
-    cb(null, new Repo(sbot, id, msg))
+    var repo = new Repo(sbot, id, msg)
+    repo._sync()
+    cb(null, repo)
   })
 }
 
-function Repo(sbot, id, msg) {
+function Repo(sbot, id, msg, isNew) {
   this.sbot = sbot
   this.id = id
   this.feed = msg.author
   this._refs = {/* ref: sha1 */}
   this._objects = {/* sha1: {type, length, key} */}
 
-  pull(
-    this._stream = sbot.createHistoryStream({
-      id: msg.author,
-      live: true,
-      sequence: msg.sequence
-    }),
-    pull.drain(this._processMsg.bind(this), function (err) {
-      if (err) return cb(err)
-      pull(
-        repo._stream =
-          sbot.createHistoryStream({id: feed, seq: seq, live: true}),
-        pull.drain(repo._processMsg.bind(repo))
-      )
-      cb(null, repo)
-    })
-  )
+  // queued operations while syncing of old messages
+  this._oldRefPushables = []
+  this._hashLookups = {/* sha1: cb(err, object) */}
 }
 
 exports.Repo = Repo
 
 Repo.prototype.closed = false
+Repo.prototype.synced = false
 
 Repo.prototype.close = function (cb) {
   if (this.closed) return
   this.closed = true
-  this._stream(true, cb)
+  this._readNew(true, cb)
 }
 
-Repo.prototype._processMsg = function (msg) {
-  var c = msg.value.content
-  seq = msg.seq
-  if (c.type != 'git-update' || c.repo != this.id) return
-  var update = c.refs
-  if (update) {
-    var refs = this._refs
-    for (var name in update) {
-      if (update[name])
-        refs[name] = update[name]
-      else
-        delete refs[name]
+Repo.prototype._processOldMsg = function (c) {
+  for (var ref in c.refs || {}) {
+    if (!(ref in this._refs)) {
+      var hash = c.refs[ref]
+      this._refs[ref] = hash
+      var refObj = {name: ref, hash: hash}
+      this._oldRefPushables.forEach(function (pushable) {
+        pushable.push(refObj)
+      })
     }
   }
 
-  var objects = c.objects
-  if (objects) {
-    var allObjects = this._objects
-    for (var sha1 in objects) {
-      allObjects[sha1] = objects[sha1]
+  for (var sha1 in c.objects || {}) {
+    if (!(sha1 in this._objects)) {
+      var obj = c.objects[sha1]
+      this._objects[sha1] = obj
+
+      // complete waiting lookup
+      if (sha1 in this._hashLookups) {
+        this._hashLookups[sha1](null, obj)
+        delete this._hashLookups[sha1]
+      }
     }
   }
+}
+
+Repo.prototype._processNewMsg = function (c) {
+  for (var name in c.refs || {})
+    if (c.refs[name])
+      this._refs[name] = c.refs[name]
+    else
+      delete this._refs[name]
+
+  for (var sha1 in c.objects || {})
+    this._objects[sha1] = c.objects[sha1]
 }
 
 Repo.prototype._getBlob = function (key, cb) {
@@ -117,42 +124,92 @@ Repo.prototype._getBlob = function (key, cb) {
   })
 }
 
-Repo.prototype._hashLookup = function (sha1, cb) {
-  cb(null, this._objects[sha1])
+Repo.prototype._hashLookup = function hashLookup(sha1, cb) {
+  if (this.synced || sha1 in this._objects)
+    cb(null, this._objects[sha1])
+  else
+    this._hashLookups[sha1] = cb
 }
 
 // get refs source({name, hash})
-Repo.prototype.refs = function (prefix) {
-  if (prefix) throw new Error('prefix not supported')
-  var refs = {}
-  var objects = this._objects
+Repo.prototype.refs = function () {
+  return this.synced
+    ? this._currentRefs()
+    : cat([
+      this._currentRefs(),
+      this._oldRefs()
+    ])
+}
+
+Repo.prototype._currentRefs = function () {
+  var refs = this._refs
   return pull(
+    pull.values(Object.keys(refs)),
+    pull.map(function (name) {
+      return {
+        name: name,
+        hash: refs[name]
+      }
+    })
+  )
+}
+
+// get refs that are being read from history
+Repo.prototype._oldRefs = function () {
+  var read = pushable()
+  this._oldRefPushables.push(read)
+  return read
+}
+
+Repo.prototype._sync = function () {
+  pull(
     this.sbot.links({
       type: 'git-update',
       dest: this.id,
       source: this.feed,
       rel: 'repo',
       values: true,
+      keys: false,
       reverse: true
     }),
     pull.map(function (msg) {
-      var c = msg.value.content
-      var refsArr = []
-      if (c.refs)
-        for (var ref in c.refs)
-          if (!(ref in refs)) {
-            var hash = c.refs[ref]
-            refs[ref] = hash
-            if (hash)
-              refsArr.push({name: ref, hash: hash})
-          }
-      if (c.objects)
-        for (var object in c.objects)
-          if (!(hash in objects))
-            objects[hash] = c.objects[hash]
-      return refsArr
+      return msg.value.content
     }),
-    pull.flatten()
+    pull.drain(this._processOldMsg.bind(this), function (err) {
+      this.synced = true
+      this._oldRefPushables.forEach(function (pushable) {
+        pushable.end(err)
+      })
+      delete this._oldRefPushables
+
+      // complete waiting requests for lookups
+      for (var sha1 in this._hashLookups) {
+        this._hashLookups[sha1](null, null)
+      }
+      delete this._hashLookups
+
+      this._syncNew([Date.now()])
+    }.bind(this))
+  )
+}
+
+Repo.prototype._syncNew = function (since) {
+  var id = this.id
+  pull(
+    this.sbot.createHistoryStream({
+      id: this.feed,
+      live: true,
+      gt: since
+    }),
+    pull.map(function (msg) {
+      return msg.value.content
+    }),
+    pull.filter(function (c) {
+      return (c.type == 'git-update' && c.repo == id)
+    }),
+    pull.drain(this._processNewMsg.bind(this), function (err) {
+      if (err) throw err
+    })
   )
 }
 
@@ -240,8 +297,8 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
       if (err) return cb(err)
       // pre-emptively apply the local update.
       // the update is idempotent so this is ok.
-      self._processMsg(msg)
-      cb()
+      self._processNewMsg(msg.value.content)
+      setTimeout(cb, 10)
     })
   })
 }

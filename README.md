@@ -59,7 +59,6 @@ Close the repo's update stream
 ## TODO
 
 - reuse index between a user's repos
-- queue operations made before log is fully read
 - handle push with more object IDs than fit in a message
 
 ## License
