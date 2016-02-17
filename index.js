@@ -225,7 +225,7 @@ Repo.prototype.hasObject = function (hash, cb) {
 Repo.prototype.getObject = function (hash, cb) {
   this._hashLookup(hash, function (err, obj) {
     if (err) return cb(err)
-    if (!obj) return cb()
+    if (!obj) return cb(new Error('Object not present with hash ' + hash))
     this._getBlob(obj.key, function (err, read) {
       if (err) return cb(err)
       cb(null, {
