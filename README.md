@@ -45,10 +45,10 @@ An [abstract-pull-git-repo][]-compliant git repo object. Additional methods:
 
 #### `repo.close(cb(err))`
 
+Close the repo's update stream.
+
 - `cb`: function called when the repo's stream is closed
 - `err`: error closing the repo, if any
-
-Close the repo's update stream
 
 [abstract-pull-git-repo]: https://github.com/clehner/abstract-pull-git-repo
 [ssb-client]: https://github.com/ssbc/ssb-client
