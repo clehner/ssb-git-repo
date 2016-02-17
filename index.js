@@ -75,7 +75,8 @@ Repo.prototype.synced = false
 Repo.prototype.close = function (cb) {
   if (this.closed) return
   this.closed = true
-  this._readNew(true, cb)
+  if (this._readNew)
+    this._readNew(true, cb)
 }
 
 Repo.prototype._processOldMsg = function (c) {
@@ -194,9 +195,10 @@ Repo.prototype._sync = function () {
 }
 
 Repo.prototype._syncNew = function (since) {
+  if (this.closed) return
   var id = this.id
   pull(
-    this.sbot.createHistoryStream({
+    this._readNew = this.sbot.createHistoryStream({
       id: this.feed,
       live: true,
       gt: since
