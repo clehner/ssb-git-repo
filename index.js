@@ -310,6 +310,10 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
   done(function (err) {
     ended = true
     if (err) return cb(err)
+
+    if (!gotObjects && !gotRefUpdates)
+      return cb()
+
     sbot.publish(msg, function (err, msg) {
       if (err) return cb(err)
       // pre-emptively apply the local update.
