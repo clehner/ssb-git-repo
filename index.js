@@ -7,14 +7,18 @@ var pushable = require('pull-pushable')
 
 function createHash(type, onEnd) {
   var hash = (typeof type == 'string') ? crypto.createHash(type) : type
+  var digest
+  var ended
   function hasher(read) {
     return function (abort, cb) {
       read(abort, function (end, data) {
-        var digest
-        if (end === true) digest = hash.digest()
+        if (end === true && !digest) digest = hash.digest()
         else if (!end) hash.update(data)
         cb(end, data)
-        if (end && onEnd) onEnd(end === true ? null : end, digest)
+        if (end && onEnd && !ended) {
+          onEnd(end === true ? null : end, digest)
+          ended = true
+        }
       })
     }
   }
@@ -82,7 +86,7 @@ Repo.prototype.close = function (cb) {
   if (this.closed) return
   this.closed = true
   if (this._readNew)
-    this._readNew(true, cb)
+    this._readNew(true, cb || function () {})
 }
 
 Repo.prototype._processOldMsg = function (c) {
@@ -246,11 +250,13 @@ Repo.prototype.getObject = function (hash, cb) {
 Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
   var done = multicb({pluck: 1})
   var sbot = this.sbot
+  var allObjects = this._objects
   var ended
   var msg = {
     type: 'git-update',
     repo: this.id
   }
+  var gotRefUpdates, gotObjects
 
   if (readRefUpdates) {
     var doneReadingRefs = done()
@@ -265,7 +271,8 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
           'old in update: ' + update.old + ', ' +
           'old in repo: ' + oldRefs[update.name]
         ))
-        refs[update.name] = update.new
+      refs[update.name] = update.new
+      gotRefUpdates = true
       if (!ended)
         readRefUpdates(null, next)
     })
@@ -277,27 +284,25 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
     readObjects(null, function next(end, object) {
       if (end) return doneReadingObjects(end === true ? null : end)
       var sha1, blobHash
+      var hashDone = multicb({pluck: 1, spread: true})
       pull(
         object.read,
-        createGitHash(object, function (err, hash) {
-          if (err) return doneReadingObjects(err)
-          sha1 = hash.toString('hex')
-        }),
-        createSSBBlobHash(function (err, hash) {
-          if (err) return doneReadingObjects(err)
-          blobHash = hash
-        }),
-        sbot.blobs.add(function (err) {
-          if (err) return doneReadingObjects(err)
-          objects[sha1] = {
-            type: object.type,
-            length: object.length,
-            key: blobHash
-          }
-          if (!ended)
-            readObjects(null, next)
-        })
+        createGitHash(object, hashDone()),
+        createSSBBlobHash(hashDone()),
+        sbot.blobs.add(hashDone())
       )
+      hashDone(function (err, gitHash, blobKey) {
+        if (err) return doneReadingObjects(err)
+        var sha1 = gitHash.toString('hex')
+        gotObjects = true
+        allObjects[sha1] = objects[sha1] = {
+          type: object.type,
+          length: object.length,
+          key: blobKey
+        }
+        if (!ended)
+          readObjects(null, next)
+      })
     })
   }
 
