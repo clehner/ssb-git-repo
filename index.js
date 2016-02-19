@@ -28,6 +28,12 @@ function createGitHash(object, onEnd) {
   return hasher
 }
 
+function createSSBBlobHash(onEnd) {
+  return createHash('sha256', function (err, digest) {
+    onEnd(err, digest && ('&' + digest.toString('base64') + '.sha256'))
+  })
+}
+
 exports.createRepo = function (sbot, options, cb) {
   if (typeof options == 'function') cb = options, options = null
   var msg = {
@@ -270,19 +276,23 @@ Repo.prototype.update = function (readRefUpdates, readObjects, cb) {
     var objects = msg.objects = {}
     readObjects(null, function next(end, object) {
       if (end) return doneReadingObjects(end === true ? null : end)
-      var sha1
+      var sha1, blobHash
       pull(
         object.read,
         createGitHash(object, function (err, hash) {
           if (err) return doneReadingObjects(err)
           sha1 = hash.toString('hex')
         }),
-        sbot.blobs.add(function (err, hash) {
+        createSSBBlobHash(function (err, hash) {
+          if (err) return doneReadingObjects(err)
+          blobHash = hash
+        }),
+        sbot.blobs.add(function (err) {
           if (err) return doneReadingObjects(err)
           objects[sha1] = {
             type: object.type,
             length: object.length,
-            key: hash
+            key: blobHash
           }
           if (!ended)
             readObjects(null, next)
