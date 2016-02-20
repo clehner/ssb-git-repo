@@ -39,6 +39,14 @@ Get a repo.
 - `err`: error retrieving the repo, if any
 - `repo`: `ssbGit.Repo` object for the retrieved repo
 
+#### `ssbGit.repos(sbot, options): source(repo)`
+
+Get repos from the feed
+
+- `sbot`: a [scuttlebot][] or [ssb-client][] object
+- `options`: options to pass to `sbot.createFeedStream`
+- `repo`: `ssbGit.Repo` object
+
 #### `ssbGit.Repo`
 
 An [abstract-pull-git-repo][]-compliant git repo object. Additional methods:

@@ -1,5 +1,6 @@
 var ref = require('ssb-ref')
 var Repo = require('./lib/repo')
+var pull = require('pull-stream')
 
 exports.Repo = Repo
 
@@ -28,4 +29,16 @@ exports.getRepo = function (sbot, id, cb) {
     repo._sync()
     cb(null, repo)
   })
+}
+
+exports.repos = function (sbot, options) {
+  return pull(
+    sbot.createFeedStream(options),
+    pull.filter(function (msg) {
+      return msg.value.content.type === 'git-repo'
+    }),
+    pull.map(function (msg) {
+      return new Repo(sbot, msg.key, msg.value.content)
+    })
+  )
 }

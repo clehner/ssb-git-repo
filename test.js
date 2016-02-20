@@ -25,3 +25,18 @@ test('repo implements abstract pull git repo interface', function (t) {
       ssbGit.getRepo.bind(ssbGit, sbot, repoA.id))
   })
 })
+
+test('get repos', function (t) {
+  ssbGit.createRepo(sbot, function (err, repo) {
+    t.error(err, 'created repo')
+    pull(
+      ssbGit.repos(sbot),
+      pull.collect(function (err, repos) {
+        t.error(err, 'got repos')
+        t.ok(repos.some(function (r) { return r.id == repo.id }),
+          'new repo is listed', repos.length)
+        t.end()
+      })
+    )
+  })
+})
