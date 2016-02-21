@@ -22,19 +22,19 @@ ssbGit.getRepo(sbot, repoId, function (err, repo) {
 Create a repo. Publishes a message announcing the new repo.
 
 - `sbot`: a [scuttlebot][] or [ssb-client][] object
-- `options`: optional additional keys to add the repo creation message
-  - `options.forks`: message ID of a repo of which this repo is considered a
-    fork
+- `options.forks`: message ID of a repo of which this repo is considered a fork
+- `options.live`: keep the repo updated as changes are pushed to it
 - `cb`: function called when the repo is created
 - `err`: error creating the repo, if any
 - `repo`: `ssbGit.Repo` object for the new repo
 
-#### `ssbGit.getRepo(sbot, repoId, cb(err, repo))`
+#### `ssbGit.getRepo(sbot, repoId[, options], cb(err, repo))`
 
 Get a repo.
 
 - `sbot`: a [scuttlebot][] or [ssb-client][] object
 - `id`: ID of the SSB message that started the repo
+- `options.live`: keep the repo updated as changes are pushed to it
 - `cb`: function called when the repo is retrieved
 - `err`: error retrieving the repo, if any
 - `repo`: `ssbGit.Repo` object for the retrieved repo
