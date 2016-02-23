@@ -1,11 +1,11 @@
-# ssb-git
+# ssb-git-repo
 
 Host git repos in [secure-scuttlebutt][]
 
 ## Example
 
 ```js
-var ssbGit = require('ssb-git')
+var ssbGit = require('ssb-git-repo')
 var repoId = '%CBeVWA9eYt6OhJDXFtqas6kWb5LwaJxYtfwDazKvh4U=.sha256'
 
 // get a single repo:
