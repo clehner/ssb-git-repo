@@ -21,8 +21,9 @@ test.onFinish(function () {
 test('repo implements abstract pull git repo interface', function (t) {
   ssbGit.createRepo(sbot, function (err, repoA) {
     t.error(err, 'created repo')
-    pullGitRepoTests.repos(t.test, repoA,
-      ssbGit.getRepo.bind(ssbGit, sbot, repoA.id))
+    pullGitRepoTests.repos(t.test, repoA, function (cb) {
+      ssbGit.getRepo(sbot, repoA.id, {live: true}, cb)
+    })
   })
 })
 
