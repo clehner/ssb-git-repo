@@ -75,21 +75,26 @@ test('repo updates replicate through pubs', function (t) {
     })
   })
 
-  /*
-  t.test('create and update repo', function (t) {
+  t.test('git objects are replicated', function (t) {
     var opt = {live: true}
-    ssbGit.createRepo(alice, function (err, repoAlice) {
+    ssbGit.createRepo(alice, function (err, repoA) {
       t.error(err, 'created repo')
-      if (err) return
-      pullGitRepoTests.repos(t.test, repoAlice, function (cb) {
-        awaitGossip(bob, alice, function (err) {
-          t.error(err, 'await gossip')
-          ssbGit.getRepo(bob, repoAlice.id, opt, cb)
+      // TODO: generate a new git update instead of using pre-existing one
+      var update = pullGitRepoTests.getUpdate(0)
+      repoA.update(update.refs, update.objects, function (err) {
+        t.error(err, 'pushed update')
+        t.test('objects are added', function (t) {
+          awaitGossip(bob, alice, function (err) {
+            t.error(err, 'await gossip')
+            ssbGit.getRepo(bob, repoA.id, opt, function (err, repoB) {
+              pullGitRepoTests.testObjectsAdded(t, repoB, update.hashes)
+              t.end()
+            })
+          })
         })
       })
     })
   })
-  */
 
   t.test('close the sbots', function (t) {
     t.plan(3)
