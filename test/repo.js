@@ -1,5 +1,5 @@
 var test = require('tape')
-var ssbGit = require('.')
+var ssbGit = require('..')
 var pullGitRepoTests = require('abstract-pull-git-repo/tests')
 var ssbKeys = require('ssb-keys')
 var pull = require('pull-stream')

@@ -4,7 +4,7 @@
   "description": "git repos in secure-scuttlebutt",
   "main": "index.js",
   "scripts": {
-    "test": "node test"
+    "test": "tape test/*.js"
   },
   "repository": {
     "type": "git",
