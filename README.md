@@ -83,7 +83,7 @@ for a git repo. It may have properties added later.
   type: 'git-update',
   repo: MsgId,
   refs: { <ref>: String|null },
-  objects: { <sha1>: { type: String, length: Number, link: BlobId } },
+  objects: [ { type: String, length: Number, sha1: String, link: BlobId } ],
 }
 ```
 Updates a repo. Published as a result of `git push`.
@@ -91,9 +91,9 @@ Updates a repo. Published as a result of `git push`.
 - `refs`: updates to the repo's refs. a map of ref names to git sha1 hashes.
   e.g. `{ 'refs/heads/master': commitId }`
 - `objects`: git objects being added to the repo.
-  maps git sha1 hashes to object info.
   - `object.type`: one of `["commit", "tree", "blob", "tag"]`
   - `object.length`: size in bytes of the git object
+  - `object.sha1`: SHA1 hash of the git object
   - `object.link`: id of the ssb blob containing the git object's data.
 
 ## TODO

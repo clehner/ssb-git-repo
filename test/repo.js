@@ -18,6 +18,27 @@ test.onFinish(function () {
   sbot.close(true)
 })
 
+test('links to objects are detected', function (t) {
+  ssbGit.createRepo(sbot, function (err, repo) {
+    t.error(err, 'created repo')
+    var update = pullGitRepoTests.getUpdate(0)
+    repo.update(update.refs, update.objects, function (err) {
+      t.error(err, 'pushed update')
+      pull(
+        sbot.links({
+          dest: '&',
+          values: true
+        }),
+        pull.collect(function (err, msgs) {
+          t.error(err, 'got links')
+          t.equals(msgs.length, update.hashes.length, 'links to objects')
+          t.end()
+        })
+      )
+    })
+  })
+})
+
 test('repo implements abstract pull git repo interface', function (t) {
   ssbGit.createRepo(sbot, function (err, repoA) {
     t.error(err, 'created repo')
