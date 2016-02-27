@@ -64,6 +64,40 @@ Close the repo's update stream.
 [secure-scuttlebutt]: https://github.com/ssbc/secure-scuttlebutt
 [pull-stream]: https://github.com/dominictarr/pull-stream
 
+### Schema
+
+#### type: git-repo
+
+```js
+{ type: 'git-repo' }
+```
+
+Creates a git repo. Note that you can actually push git objects to any message
+in your feed, but the `git-repo` type is here to declare that a message will be
+for a git repo. It may have properties added later.
+
+#### type: git-update
+
+```js
+{
+  type: 'git-update',
+  repo: MsgId,
+  refs: { <ref>: String|null },
+  objects: { <sha1>: { type: String, length: Number, link: BlobId } },
+  objects_ext: BlobId
+}
+```
+Updates a repo. Published as a result of `git push`.
+- `repo`: id of a message (expected of type `git-repo`) identifying the repo
+- `refs`: updates to the repo's refs. a map of ref names to git sha1 hashes.
+  e.g. `{ 'refs/heads/master': commitId }`
+- `objects`: git objects being added to the repo.
+  maps git sha1 hashes to object info.
+  - `object.type`: one of `["commit", "tree", "blob", "tag"]`
+  - `object.length`: size in bytes of the git object
+  - `object.link`: id of the ssb blob containing the git object's data.
+- `objects_ext`: (**deprecated**) link to a blob containing a JSON object of the same schema as `objects`. Used to supplement `objects` when the `git-update` message can't fit all the objects within in the size limit.
+
 ## TODO
 
 - reuse index between a user's repos
