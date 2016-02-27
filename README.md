@@ -84,7 +84,6 @@ for a git repo. It may have properties added later.
   repo: MsgId,
   refs: { <ref>: String|null },
   objects: { <sha1>: { type: String, length: Number, link: BlobId } },
-  objects_ext: BlobId
 }
 ```
 Updates a repo. Published as a result of `git push`.
@@ -96,7 +95,6 @@ Updates a repo. Published as a result of `git push`.
   - `object.type`: one of `["commit", "tree", "blob", "tag"]`
   - `object.length`: size in bytes of the git object
   - `object.link`: id of the ssb blob containing the git object's data.
-- `objects_ext`: (**deprecated**) link to a blob containing a JSON object of the same schema as `objects`. Used to supplement `objects` when the `git-update` message can't fit all the objects within in the size limit.
 
 ## TODO
 
