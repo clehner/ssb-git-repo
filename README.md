@@ -84,8 +84,7 @@ for a git repo. It may have properties added later.
   repo: MsgId,
   refs: { <ref>: String? }?,
   objects: [ { type: String, length: Number, sha1: String, link: BlobId } ]?,
-  packs: [ { link: BlobId } ]?,
-  packidx: [ { link: BlobId } ]?,
+  packs: [ { pack: BlobLink, idx: BlobLink } ]?,
 }
 ```
 Updates a repo. Published as a result of `git push`.
@@ -96,15 +95,14 @@ Updates a repo. Published as a result of `git push`.
   - `object.type`: one of `["commit", "tree", "blob", "tag"]`
   - `object.length`: size in bytes of the git object
   - `object.sha1`: SHA1 hash of the git object
-  - `object.link`: id of the ssb blob containing the git object's data.
-- `packs`: git packfiles being added to the repo.
-- `packidx`: git pack index files for the packfiles being added. Each item in
-    `packidx` corresponds to an item in `packs`.
+  - `object.link`: link to ssb blob containing the git object's data
+- `packs`: git packfiles being added to the repo
+  - `pack.pack` link to ssb blob containing the packfile data
+  - `pack.idx`: link to ssb blob containing the pack index data
 
 ## TODO
 
 - reuse index between a user's repos
-- handle push with more object IDs than fit in a message
 
 ## License
 
