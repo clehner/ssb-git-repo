@@ -25,6 +25,7 @@
     "pull-cache": "^0.0.0",
     "pull-reverse": "^0.0.0",
     "pull-cat": "^1.1.8",
+    "pull-hash": "^0.0.0",
     "pull-pushable": "^2.0.0",
     "pull-stream": "^3.1.0",
     "ssb-ref": "^2.3.0"
