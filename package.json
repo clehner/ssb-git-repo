@@ -33,7 +33,7 @@
   "devDependencies": {
     "abstract-pull-git-repo": "^0.3.0",
     "scuttlebot": "^7.5.1",
-    "ssb-keys": "^4.0.10",
-    "tape": "^4.4.0"
+    "ssb-keys": "^5.0.0",
+    "tape": "^4.5.1"
   }
 }
