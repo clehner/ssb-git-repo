@@ -28,12 +28,12 @@ Create a repo. Publishes a message announcing the new repo.
 - `err`: error creating the repo, if any
 - `repo`: `ssbGit.Repo` object for the new repo
 
-#### `ssbGit.getRepo(sbot, repoId[, options], cb(err, repo))`
+#### `ssbGit.getRepo(sbot, msgOrId[, options], cb(err, repo))`
 
 Get a repo.
 
 - `sbot`: a [scuttlebot][] or [ssb-client][] object
-- `id`: ID of the SSB message that started the repo
+- `msgOrId`: SSB message that started the repo, or the ID of it
 - `options.live`: keep the repo updated as changes are pushed to it
 - `cb`: function called when the repo is retrieved
 - `err`: error retrieving the repo, if any

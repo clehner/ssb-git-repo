@@ -27,12 +27,21 @@ exports.createRepo = function (sbot, options, cb) {
 exports.getRepo = function (sbot, id, options, cb) {
   if (typeof options == 'function') cb = options, options = null
   if (!options) options = {}
-  sbot.get(id, function (err, msg) {
+
+  if (typeof id == 'object') {
+    var msg = id.value
+    id = id.key
+    gotMsg(null, msg)
+  } else {
+    sbot.get(id, gotMsg)
+  }
+
+  function gotMsg(err, msg) {
     if (err) return cb(err)
     var repo = new Repo(sbot, id, msg)
     repo._sync(options.live)
     cb(null, repo)
-  })
+  }
 }
 
 exports.repos = function (sbot, options) {
