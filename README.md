@@ -84,7 +84,8 @@ for a git repo. It may have properties added later.
   repo: MsgId,
   refs: { <ref>: String? }?,
   objects: [ { type: String, length: Number, sha1: String, link: BlobId } ]?,
-  packs: [ { pack: BlobLink, idx: BlobLink } ]?,
+  packs: [ BlobLink ]?,
+  indexes: [ BlobLink ]?,
 }
 ```
 Updates a repo. Published as a result of `git push`.
@@ -96,9 +97,8 @@ Updates a repo. Published as a result of `git push`.
   - `object.length`: size in bytes of the git object
   - `object.sha1`: SHA1 hash of the git object
   - `object.link`: link to ssb blob containing the git object's data
-- `packs`: git packfiles being added to the repo
-  - `pack.pack` link to ssb blob containing the packfile data
-  - `pack.idx`: link to ssb blob containing the pack index data
+- `packs`: links to git packfiles being added to the repo
+- `indexes`: links to index files for the packfiles in `packs`
 
 ## TODO
 
