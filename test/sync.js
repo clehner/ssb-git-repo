@@ -5,6 +5,10 @@ var pull = require('pull-stream')
 var pullGitRepoTests = require('abstract-pull-git-repo/tests')
 var u = require('scuttlebot/test/util')
 var multicb = require('multicb')
+var pack = require('pull-git-pack')
+var cache = require('pull-cache')
+var indexPack = require('pull-git-pack/lib/index-pack')
+var Repo = require('pull-git-repo')
 
 var createSbot = require('scuttlebot')
   .use(require('scuttlebot/plugins/master'))
@@ -89,6 +93,41 @@ test('repo updates replicate through pubs', function (t) {
             ssbGit.getRepo(bob, repoA.id, opt, function (err, repoB) {
               pullGitRepoTests.testObjectsAdded(t, repoB, update.hashes)
               t.end()
+            })
+          })
+        })
+      })
+    })
+  })
+
+  t.test('git objects in packfiles are replicated', function (t) {
+    var opt = {live: true}
+    ssbGit.createRepo(alice, function (err, repoA) {
+      t.error(err, 'created repo')
+      // TODO: generate a new git update instead of using pre-existing one
+      var update = pullGitRepoTests.getUpdate(0)
+      packCached = cache(pull(
+        update.objects,
+        pack.encode(update.numObjects)
+      ))
+      indexPack(packCached(), function (err, idx) {
+        t.error(err, 'index pack')
+        repoA.uploadPack(update.refs, pull.once({
+          pack: packCached(),
+          idx: idx
+        }), function (err) {
+          t.error(err, 'pushed update')
+          t.test('objects are added', function (t) {
+            awaitGossip(bob, alice, function (err) {
+              t.error(err, 'await gossip')
+              ssbGit.getRepo(bob, repoA.id, opt, function (err, repoB) {
+                t.error(err, 'get repo')
+                pullGitRepoTests.testObjectsAdded(t, Repo(repoB),
+                  update.hashes, function () {
+                    t.end()
+                  }
+                )
+              })
             })
           })
         })
