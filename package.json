@@ -1,6 +1,6 @@
 {
   "name": "ssb-git-repo",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "git repos in secure-scuttlebutt",
   "main": "index.js",
   "scripts": {
